@@ -2,12 +2,20 @@
 
 > Where we are, newest at top. Update before ending any session.
 
-_Last updated: 2026-05-24 — v1 complete: all 5 stages built, tested, pushed. Pending: your live walk-test._
+_Last updated: 2026-05-24 — v1 complete + hardening pass; all tested & pushed. Pending: your live walk-test._
 
 ## Status
-🟢 **v1 done.** Full pipeline (read → ping → features → fusion detector → live `rich` dashboard
-→ beep) runs end-to-end on real hardware (exit 0, calibrates, renders, no crash). **16 unit tests
-green.** README complete; code pushed to GitHub. Engineering plan: `PLAN.md`.
+🟢 **v1 done + hardened.** Full pipeline (read → ping → features → fusion detector → live `rich`
+dashboard → beep) runs end-to-end on real hardware (exit 0, calibrates, renders, no crash).
+**17 unit tests green.** Full README (setup/run/test step-by-step + troubleshooting) + MIT LICENSE;
+code pushed to GitHub. Engineering plan: `PLAN.md`.
+
+## Hardening pass (2026-05-24, post-review)
+- Fixed infinite-loop risk: calibration now bails with a clear error if the link drops.
+- Live loop handles mid-run disconnect gracefully (NO LINK state; detection paused).
+- `detector.update` computes the per-cue breakdown before drift (consistent with the score).
+- Sparkline now scaled to `T_high` so motion visibly spikes above the rest line.
+- Added MIT LICENSE, pinned `requirements.txt`, added a baseline-drift unit test.
 **Only open item:** the physical walk-test (CLEAR→MOTION when you walk) — that needs a human; run
 `python src/main.py` and confirm. Tune `K_HIGH`/`T_MARGIN`/`FUSION_WEIGHTS` in `config.py` if needed.
 

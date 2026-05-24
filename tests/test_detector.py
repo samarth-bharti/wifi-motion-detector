@@ -65,3 +65,12 @@ def test_single_spike_does_not_trip_motion():
     det.update(feat(signal=30, signal_std=12, rtt_std=8, loss=0.4))  # 1 spike
     det.update(feat())                                                # back to quiet
     assert det.state == "CLEAR"
+
+
+def test_baseline_drifts_toward_recent_values():
+    """Adaptive drift: the baseline center should track a slow shift."""
+    det = calibrated_detector()
+    center0 = det.baseline["signal"][0]
+    for _ in range(50):
+        det._drift(feat(signal=60))
+    assert det.baseline["signal"][0] > center0

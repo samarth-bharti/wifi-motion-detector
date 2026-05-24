@@ -38,10 +38,16 @@ def _calibrate(fx, det, gw, console) -> None:
     n = max(5, int(config.CALIBRATION_SEC / config.SAMPLE_INTERVAL_SEC))
     console.print(f"[cyan]Calibrating ~{config.CALIBRATION_SEC}s - hold still...[/]")
     cal: list[dict] = []
+    attempts, max_attempts = 0, n * 3 + 20   # generous cap so a dropout can't hang us
     while len(cal) < n:
         _read(fx, gw)
         if fx.ready:
             cal.append(fx.features())
+        attempts += 1
+        if attempts > max_attempts:
+            raise RuntimeError(
+                "Calibration failed - WiFi link unstable or disconnected. "
+                "Make sure you're connected to your router, then run again.")
         sleep(config.SAMPLE_INTERVAL_SEC)
     det.calibrate(cal)
     console.print(f"[green]Baseline ready.[/] "
@@ -65,11 +71,15 @@ def main() -> None:
         while True:
             start = time()
             sample = _read(fx, gw)
-            state, score, parts = det.update(fx.features())
-            if state == "MOTION" and prev != "MOTION":
-                _beep()
-            prev = state
-            live.update(dash.render(state, score, parts, det, sample))
+            if sample.connected:
+                state, score, parts = det.update(fx.features())
+                if state == "MOTION" and prev != "MOTION":
+                    _beep()
+                prev = state
+                live.update(dash.render(state, score, parts, det, sample))
+            else:                       # link dropped: pause detection, keep UI alive
+                prev = "NO LINK"
+                live.update(dash.render("NO LINK", 0.0, {}, det, sample))
             ticks += 1
             if max_ticks and ticks >= max_ticks:
                 break

@@ -32,17 +32,18 @@ _UTF = _supports_unicode()
 _BLOCKS = "▁▂▃▄▅▆▇█" if _UTF else " .:-=+*#"   # sparkline ramp (8 levels either way)
 _BAR = "█" if _UTF else "#"                     # contribution-bar fill
 _STYLES = {"MOTION": "bold white on red", "CLEAR": "bold white on green",
-           "CALIBRATING": "bold black on yellow"}
-_BORDER = {"MOTION": "red", "CLEAR": "green", "CALIBRATING": "yellow"}
+           "CALIBRATING": "bold black on yellow", "NO LINK": "bold black on yellow"}
+_BORDER = {"MOTION": "red", "CLEAR": "green",
+           "CALIBRATING": "yellow", "NO LINK": "yellow"}
 
 
-def _sparkline(values, width: int = 48) -> str:
+def _sparkline(values, scale: float, width: int = 48) -> str:
+    """Render recent scores as a sparkline, scaled so `scale` ~= full height."""
     vals = list(values)[-width:]
     if not vals:
         return ""
-    hi = max(max(vals), 1e-6)
     top = len(_BLOCKS) - 1
-    return "".join(_BLOCKS[min(top, int(v / hi * top))] for v in vals)
+    return "".join(_BLOCKS[min(top, max(0, int(v / scale * top)))] for v in vals)
 
 
 class Dashboard:
@@ -53,10 +54,12 @@ class Dashboard:
         self.scores.append(score)
 
         hdr = Text(justify="center")
-        if sample:
+        if sample and sample.connected:
             hdr.append(f"{sample.ssid or '?'}   ", style="cyan")
             hdr.append(f"RSSI {sample.rssi} dBm ({sample.signal_pct}%)   ", style="white")
             hdr.append(f"Rx {sample.rx_rate or 0:.0f} Mbps", style="white")
+        else:
+            hdr.append("link disconnected", style="yellow")
 
         banner = Text(f"\n   {state}   \n", style=_STYLES.get(state, ""),
                       justify="center")
@@ -64,7 +67,8 @@ class Dashboard:
         meter = Text(justify="center")
         meter.append(f"score {score:5.2f}", style="bold")
         meter.append(f"    T_high {det.t_high:.2f}   T_low {det.t_low:.2f}", style="dim")
-        spark = Text(_sparkline(self.scores), style="magenta", justify="center")
+        scale = max(det.t_high * 1.6, max(self.scores, default=0.0), 1e-6)
+        spark = Text(_sparkline(self.scores, scale), style="magenta", justify="center")
 
         tbl = Table.grid(padding=(0, 1))
         tbl.add_column(justify="right", style="cyan")

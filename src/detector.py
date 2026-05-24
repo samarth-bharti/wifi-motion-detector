@@ -62,6 +62,7 @@ class Detector:
 
     def update(self, fd: dict) -> tuple[str, float, dict]:
         score = self._score(fd)
+        parts = {k: self._z(k, fd[k]) for k in config.FUSION_FEATURES}  # before drift
         if self.state == "MOTION":
             if score < self.t_low:
                 self._exit += 1
@@ -77,7 +78,6 @@ class Detector:
             else:
                 self._enter = 0
                 self._drift(fd)
-        parts = {k: self._z(k, fd[k]) for k in config.FUSION_FEATURES}
         return self.state, score, parts
 
     def _drift(self, fd: dict) -> None:
