@@ -2,25 +2,20 @@
 
 Detect human motion in a room using **only your laptop's existing WiFi** — no camera,
 no extra hardware, no purchases. The app watches your link to the router and flags
-**MOTION** when someone moves through the space, **CLEAR** when the room is still.
+**MOVEMENT** when someone moves through the space, **ROOM QUIET** when it's still.
 
 ```
 +--------------------- WiFi Motion Detector ---------------------+
 |         BHARTI_HOME   RSSI -71 dBm (50%)   Rx 140 Mbps         |
 |                                                                |
-|                             MOTION                             |
+|                        MOVEMENT DETECTED                       |
 |                                                                |
-|            score  5.37    T_high 3.20   T_low 2.30             |
-|              ▁▁▂▁▂▁▃▂▁▂▆█▇█▆▅▃▂▁▁▂▁▁▂▁▁▁▁▁▁▁▁                  |
-|                                                                |
-|                   signal ██████ 2.0                            |
-|               signal_std ████████████ 4.1                      |
-|                 rssi_std  0.0                                  |
-|                  rx_rate ██ 0.6                                |
-|                      rtt ████████ 2.8                          |
-|                  rtt_std ████████████ 4.0                      |
-|                     loss ██████ 2.0                            |
-+------------------------ Ctrl-C to stop ------------------------+
+|               [####################|#######] 100%             |
+|            Movement is disturbing the WiFi signal.             |
+|                          - details -                           |
+|            score  5.40    T_high 3.20   T_low 2.30             |
+|         signal ######   rtt_std ########   loss ######         |
++- keep the laptop still (it is the sensor)  |  Ctrl-C to quit --+
 ```
 
 ## Why this exists
@@ -42,10 +37,27 @@ Python, zero cost.
    so no single noisy cue dominates, then combined into one **motion score** (weighted RMS).
 5. **Decide.** Thresholds are auto-tuned from your room's own calibration noise. Hysteresis
    (separate enter/exit levels) + debounce stop flicker; the baseline slowly adapts while
-   CLEAR so slow environmental drift doesn't cause false alarms.
+   QUIET so slow environmental drift doesn't cause false alarms.
 
-The dashboard's per-cue bars show *which* signals drove a detection — so it's legible,
-not a black box.
+## What it can & can't detect
+**Detects:** whether significant human movement is disturbing the radio path between your
+laptop and router.
+- **One person moving** → yes; strongest when they cross the laptop↔router line.
+- **Two or more moving** → easier (more disturbance = higher score), but it **cannot count
+  people** — it is strictly motion / no-motion.
+- **People already in the room but still** during calibration → fine; they become part of
+  the quiet baseline. (Just don't move during the ~20 s calibration.)
+- **Router in another room** → works for movement in/near the laptop↔router "corridor"
+  (even through a wall); motion far off that line may be missed. Coverage is that corridor,
+  **not the whole house**.
+
+**Can't:** count or locate people, or work while the laptop is moving (see below).
+
+### ⚠ Keep the laptop still
+The laptop **is the sensor**. If *it* moves (carried, on your lap), the whole signal moves
+and there's no way to tell that apart from someone moving in the room. **Put the laptop on a
+stable surface and leave it there.** (Sensing *while you move around* is exactly what the
+multi-phone v2 is for — several *stationary* phones as fixed sensors.)
 
 ## Requirements
 - **Windows** (uses `netsh` and `ping`; tested on Windows 11).
@@ -55,7 +67,7 @@ not a black box.
 ---
 
 ## 1. Setup (one time)
-Open PowerShell in the project folder and run:
+Open **PowerShell** in the project folder and run:
 
 ```powershell
 cd E:\ancilar\wifi-motion-detector
@@ -64,61 +76,58 @@ python -m venv .venv               # create an isolated environment
 pip install -r requirements.txt    # install numpy, rich, pytest
 ```
 
-> If `Activate.ps1` is blocked, allow scripts for your user once:
-> `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`
+> Use **PowerShell**, not Command Prompt. In CMD, `cd E:\...` won't switch drives and the
+> `.ps1` activate script won't run — use `E:` then `.venv\Scripts\activate.bat` instead.
+> If `Activate.ps1` is blocked: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 
 ## 2. Run it
 ```powershell
-python src/main.py
+python src\main.py
 ```
 Then:
-1. **Hold still ~20 s** while it calibrates. It prints `Baseline ready. T_low=… T_high=…`.
-2. **Sit still** → the banner stays **CLEAR** (green); score below `T_high`.
-3. **Walk between your laptop and the router** → it flips to **MOTION** (red) and beeps.
-4. **Stand still** → back to **CLEAR** after a few seconds. Press **Ctrl-C** to quit.
+1. **Put the laptop on a table and don't move it.** Hold still ~20 s while it calibrates
+   (`Baseline ready. T_low=… T_high=…`).
+2. **Sit still** → banner stays **ROOM QUIET** (green); meter below the `|` mark.
+3. **Walk between your laptop and the router** → **MOVEMENT DETECTED** (red) + a beep.
+4. **Stand still** → back to QUIET in ~3–4 s. Press **Ctrl-C** to quit.
 
 > Tip: run in **Windows Terminal** for the smooth block sparkline; the classic console
 > falls back to ASCII automatically (no crash, just `#` instead of `█`).
 
 ## 3. Test it
 
-**a) Automated unit tests** (parser, features, detector logic — no walking needed):
+**a) Automated unit tests** (parser, features, detector, meter — no walking needed):
 ```powershell
 pytest -q
 ```
-Expect `... passed`. These prove the netsh/ping parsing, the rolling-window math, and the
-CLEAR↔MOTION state machine (including debounce and drift).
+Expect `... passed`.
 
 **b) Quick bounded run** (full pipeline on real hardware, exits after N ticks):
 ```powershell
-$env:WMD_MAX_TICKS = 8 ; python src/main.py
+$env:WMD_MAX_TICKS = 8 ; python src\main.py
 ```
 
-**c) The real walk-test** (the one only a human can do):
-Run `python src/main.py`, then follow the four steps in section 2. You should see:
-- still room → **CLEAR**, score comfortably under `T_high`;
-- you walking the laptop↔router path → **MOTION**;
-- you stop → **CLEAR** again.
-
-If it's too jumpy or too sluggish, tune it (next section) and re-test.
+**c) The real walk-test** (the one only a human can do): run `python src\main.py` and
+follow the four steps in section 2.
 
 ---
 
 ## Reading the dashboard
-- **Banner** — current state: CLEAR / MOTION / CALIBRATING / NO LINK.
-- **score** — the fused motion score; compare against **T_high** (enter) and **T_low** (exit).
-- **sparkline** — recent scores, scaled so `T_high` sits about two-thirds up; motion clearly
-  spikes above the rest line.
-- **per-cue bars** — each feature's z-score this tick; the longest bars are what triggered it.
+- **Banner** — plain status: ROOM QUIET / MOVEMENT DETECTED / CALIBRATING / WIFI DISCONNECTED.
+- **Motion meter (0–100%)** — how strong the movement signal is. The `|` marks the trip point
+  (~70%): below it = quiet (green), past it = motion (red).
+- **details** (for tuning) — the raw `score` vs `T_high`/`T_low`, a score sparkline, and the
+  per-cue z-score bars (the longest bars are what triggered it).
 
 ## Tuning
 Everything lives in `src/config.py`. Most-used knobs:
 
 | Setting | Effect |
 |---|---|
+| `WINDOW` | Smaller = faster reaction/reset (noisier); larger = smoother but slower. |
 | `CALIBRATION_SEC` | Longer = a more representative quiet baseline. |
 | `K_HIGH` / `T_MARGIN` | Raise to reduce false alarms; lower to catch subtler motion. |
-| `K_LOW` | Higher = returns to CLEAR sooner after motion stops. |
+| `K_LOW` | Higher = returns to QUIET sooner after motion stops. |
 | `N_ENTER` / `N_EXIT` | Debounce: higher = steadier but slower to react. |
 | `FUSION_WEIGHTS` | Per-cue importance. Weight up whatever moves most on *your* hardware. |
 | `PING_TARGET` | Force a router IP if auto-detection fails (e.g. `"192.168.1.1"`). |
@@ -133,35 +142,28 @@ src/
   wifi_reader.py  read + parse live netsh link stats
   pinger.py       ping the router for RTT + packet loss
   features.py     sliding-window feature extraction
-  detector.py     calibration + fusion + CLEAR/MOTION state machine
-  dashboard.py    rich live UI
+  detector.py     calibration + fusion + QUIET/MOTION state machine
+  dashboard.py    rich live UI (plain summary + details)
   main.py         orchestration loop
-tests/            unit tests (parser, features, detector)
+tests/            unit tests (parser, features, detector, meter)
 PLAN.md           full engineering plan + detection math
 PROGRESS.md       build log / current state
 ```
 
 ## Troubleshooting
-- **"No router found"** — auto-detection failed; set `PING_TARGET` in `config.py` to your
-  router's IP (find it with `ipconfig` → *Default Gateway*). It still works on WiFi cues alone.
-- **Stays CLEAR even when you walk** — lower `K_HIGH`/`T_MARGIN`, or raise the weight of the
-  cue that moves most (watch the bars). Walking *across* the laptop↔router line works best.
-- **Trips to MOTION while you're still** — raise `K_HIGH`/`T_MARGIN`, or re-calibrate in a
-  quieter moment (don't move during the ~20 s calibration).
+- **"No router found"** — set `PING_TARGET` in `config.py` to your router's IP (find it with
+  `ipconfig` → *Default Gateway*). It still works on WiFi cues alone.
+- **Stays QUIET even when you walk** — lower `K_HIGH`/`T_MARGIN`, or raise the weight of the
+  cue that moves most (watch the detail bars). Walking *across* the laptop↔router line works best.
+- **Trips to MOVEMENT while you're still** — first check the laptop isn't being bumped; then
+  raise `K_HIGH`/`T_MARGIN`, or re-calibrate in a quieter moment.
 - **"Calibration failed - WiFi link unstable"** — you weren't connected, or the link dropped;
   reconnect and run again.
 - **Garbled characters** — your console isn't UTF-8; it auto-falls back to ASCII, which is fine.
 
-## Honest limitations
-- The laptop reads **only its own** link to the router — it can't sense other devices.
-- `netsh` refreshes ~once per second, so this detects **walking, not fine gestures**.
-- Detection is environment-sensitive — **always calibrate a quiet baseline** first.
-- On some WiFi cards the `Rssi` field is coarse/sticky; the fusion approach compensates by
-  leaning on whichever cues actually move (here, Signal % and ping RTT).
-
 ## Roadmap
-- **v2 — multi-device sensing.** Phones self-report RSSI via Termux; multiple links enable
-  rough localization (which part of the room).
+- **v2 — multi-device sensing.** Stationary phones self-report RSSI via Termux; multiple links
+  crisscross the room → motion **anywhere** (not just one corridor) + rough localization.
 - **v3 — web dashboard.** Browser UI instead of the terminal.
 - Out of scope: CSI-level sensing (needs special NICs), anything that costs money.
 

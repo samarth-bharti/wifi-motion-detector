@@ -13,7 +13,7 @@ PING_TARGET = None      # None = auto-detect the default gateway (your router)
 PING_TIMEOUT_MS = 800   # a ping with no reply in this long counts as a lost packet
 
 # --- Sliding window (Stage 2) ---------------------------------------------
-WINDOW = 8              # samples kept for rolling stats (~8 s of history)
+WINDOW = 5              # samples kept for rolling stats (~5 s; smaller = faster reset)
 
 # --- Detection / fusion (Stage 3) -----------------------------------------
 CALIBRATION_SEC = 20    # seconds of "hold still" used to learn the quiet baseline
@@ -34,7 +34,7 @@ K_LOW = 1.6            # return to CLEAR below baseline_score + K_LOW * noise (h
 T_HIGH_PCTL = 90        # T_high must clear this percentile of at-rest scores...
 T_MARGIN = 1.3         # ...by at least this multiple (keeps it above normal jitter)
 N_ENTER = 2            # consecutive samples above T_high before declaring MOTION (debounce)
-N_EXIT = 3            # consecutive samples below T_low before returning to CLEAR
+N_EXIT = 2            # consecutive samples below T_low before returning to CLEAR (faster reset)
 Z_CAP = 6.0            # clamp any single feature's z-score so none can dominate
 DRIFT_ALPHA = 0.02     # how fast the baseline adapts while calmly CLEAR (0 = never)
 EPS = 1e-6            # guards against divide-by-zero when a feature never moves

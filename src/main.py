@@ -61,6 +61,8 @@ def main() -> None:
         console.print("[yellow]No router found - set PING_TARGET in config to enable "
                       "RTT/loss cues. Continuing on WiFi cues only.[/]")
 
+    console.print("[dim]Tip: the laptop is the sensor - keep it stationary. It detects "
+                  "movement crossing the laptop->router path; it can't count people.[/]")
     fx, det, dash = FeatureExtractor(), Detector(), Dashboard()
     _calibrate(fx, det, gw, console)
 

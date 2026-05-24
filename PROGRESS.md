@@ -2,12 +2,12 @@
 
 > Where we are, newest at top. Update before ending any session.
 
-_Last updated: 2026-05-24 — v1 complete + hardening pass; all tested & pushed. Pending: your live walk-test._
+_Last updated: 2026-05-24 — v1.1 polish (clearer UI, faster reset, usage guidance). Pending: your walk-test._
 
 ## Status
 🟢 **v1 done + hardened.** Full pipeline (read → ping → features → fusion detector → live `rich`
 dashboard → beep) runs end-to-end on real hardware (exit 0, calibrates, renders, no crash).
-**17 unit tests green.** Full README (setup/run/test step-by-step + troubleshooting) + MIT LICENSE;
+**21 unit tests green.** Full README (setup/run/test step-by-step + troubleshooting) + MIT LICENSE;
 code pushed to GitHub. Engineering plan: `PLAN.md`.
 
 ## Hardening pass (2026-05-24, post-review)
@@ -16,6 +16,17 @@ code pushed to GitHub. Engineering plan: `PLAN.md`.
 - `detector.update` computes the per-cue breakdown before drift (consistent with the score).
 - Sparkline now scaled to `T_high` so motion visibly spikes above the rest line.
 - Added MIT LICENSE, pinned `requirements.txt`, added a baseline-drift unit test.
+
+## v1.1 polish from real-use feedback (2026-05-24)
+Decisions: polish v1 now, phones (v2) next · interface = plain summary + details · reaction = balanced.
+- **Faster reaction/reset:** `WINDOW` 8→5, `N_EXIT` 3→2 (clears in ~3-4 s vs ~8-10 s).
+- **Glanceable UI:** plain banner (ROOM QUIET / MOVEMENT DETECTED), 0-100% motion meter with a
+  trip marker; technical z-score details kept below. New `motion_level()` + 4 tests (21 total).
+- **Usage guidance:** startup tip + README "What it can & can't detect" + "keep the laptop still".
+- **Defined limits (honest):** single link detects motion in the laptop↔router corridor only;
+  can't count/locate people; laptop must stay stationary (the sensor mustn't move).
+- **Next:** A4 walk-test by user, then Phase B (v2 multi-phone: Termux RSSI → hub → per-link
+  detection + rough localization). Termux `termux-wifi-connectioninfo` confirmed feasible.
 **Only open item:** the physical walk-test (CLEAR→MOTION when you walk) — that needs a human; run
 `python src/main.py` and confirm. Tune `K_HIGH`/`T_MARGIN`/`FUSION_WEIGHTS` in `config.py` if needed.
 
