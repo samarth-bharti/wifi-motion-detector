@@ -1,6 +1,6 @@
 # WiFi Motion Detector
 
-Detect human motion in a room using **only your laptop's existing WiFi** — no camera,
+Detect human motion in a room using **only your laptop's existing WiFi** — no camera ,  
 no extra hardware, no purchases. The app watches your link to the router and flags
 **MOVEMENT** when someone moves through the space, **ROOM QUIET** when it's still.
 
